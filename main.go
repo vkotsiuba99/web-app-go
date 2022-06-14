@@ -1,23 +1,30 @@
 package web_app_go
 
 import (
-	"fmt"
+	"github.com/go-redis/redis"
 	"github.com/gorilla/mux"
+	"html/template"
 	"net/http"
 )
 
+var client *redis.Client
+var templates *template.Template
+
 func main() {
+	client = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	templates = template.Must(template.ParseGlob("templates/*.html"))
 	r := mux.NewRouter()
-	r.HandleFunc("/hello", helloHandler).Methods("GET")
-	r.HandleFunc("/goodbye", goodbyeHandler).Methods("GET")
+	r.HandleFunc("/", indexHandler).Methods("GET")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", nil)
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello world!")
-}
-
-func goodbyeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Goodbye world!")
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	comments, err := client.LRange("comments", 0, 10).Result()
+	if err != nil {
+		return
+	}
+	templates.ExecuteTemplate(w, "index.html", comments)
 }
